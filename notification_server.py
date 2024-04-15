@@ -61,7 +61,6 @@ class NotificationServer():
     async def static_file(self, request=web.Request):
         """Serve a static file from script root"""
         local_path = os.path.join(self.script_dir, request.rel_url.path[1:])
-        print(local_path)
         if os.path.isfile(local_path):
             ext = pathlib.Path(local_path).suffix
             ct = NotificationServer.ext_to_content_type(ext)
@@ -148,12 +147,12 @@ class NotificationServer():
         """handles events"""
         self.log.debug(f"Event {event}: {data}")
 
-    def run_app(self, port=8080):
+    def run_app(self, host="127.0.0.1", port=8080):
         """Runs the web.Application"""
         self.log.info("=== Starting Notification Server ===")
         self.log.info(f"Host: [0:0:0:0] Port:[{port}]")
         self._loop = asyncio.new_event_loop()
-        web.run_app(self.app, loop=self._loop, port=port, handle_signals=True, shutdown_timeout=10)
+        web.run_app(self.app, loop=self._loop, host=host, port=port, handle_signals=True, shutdown_timeout=10)
     
     def stop(self):
         self.log.info("Stopping SocketIO Server")
@@ -192,6 +191,11 @@ if __name__ == '__main__':
         description = 'Small WebSocket/App Server to facilitate websocket notifications',
         epilog = '')
 
+    parser.add_argument("-a", 
+        "--host", 
+        default="127.0.0.1",
+        help="Specify the listener host. Default is 127.0.0.1")
+    
     parser.add_argument("-p", 
         "--port", 
         default=8080,
@@ -211,7 +215,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     log_level = logging.getLevelName(args.loglevel)
     log_file = None
-    
+
     if not args.logfile:
         log_file = os.path.join(SCRIPT_DIR, "noti_server.log")
     else:
@@ -228,5 +232,6 @@ if __name__ == '__main__':
     logging.getLogger().addHandler(logging.StreamHandler())
 
     server = NotificationServer(logging)
+    host = args.host
     port = args.port
-    server.run_app(port)
+    server.run_app(host, port)
