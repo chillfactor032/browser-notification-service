@@ -20,8 +20,8 @@ class NotificationServer():
         self.log = logging
         self.script_dir = os.path.dirname(os.path.realpath(__file__)).replace("\\", "/")
         self.registered_codes = {}
-        self.sio = socketio.AsyncServer(logger=True, engineio_logger=True)
-        self.app = web.Application()
+        self.sio = socketio.AsyncServer(logger=self.log, engineio_logger=self.log)
+        self.app = web.Application(logger=self.log)
         self.app.on_shutdown.append(self.on_shutdown)
         self.routes = [
             web.get("/", self.index),
@@ -113,6 +113,7 @@ class NotificationServer():
         self.log.info(f'Caught Signal {signame} ({signum})')
         print("Caught Signal. Stopping Server...")
         self.stop()
+        self.log.info("Notification Server Stopped")
         
     #SocketIO Event Handlers
     async def connect(self, sid, environ, auth):
@@ -149,10 +150,18 @@ class NotificationServer():
 
     def run_app(self, port=8080):
         """Runs the web.Application"""
+        self.log.info("=== Starting Notification Server ===")
+        self.log.info(f"Host: [0:0:0:0] Port:[{port}]")
         self._loop = asyncio.new_event_loop()
-        web.run_app(self.app, loop=self._loop, port=port, handle_signals=True)
+        web.run_app(self.app, loop=self._loop, port=port, handle_signals=True, shutdown_timeout=10)
     
     def stop(self):
+        self.log.info("Stopping SocketIO Server")
+        future = asyncio.run_coroutine_threadsafe(self.sio.shutdown(), self._loop)
+        try:
+            future.result(5)
+        except TimeoutError as te:
+            print("Timeout Error - SocketIO Server didn't respond. Forcing Close.")
         raise web.GracefulExit
 
     @staticmethod
@@ -211,6 +220,8 @@ if __name__ == '__main__':
         filemode="a",
         format="%(asctime)s - %(levelname)s - %(message)s"
     )
+
+    logging.getLogger().addHandler(logging.StreamHandler())
 
     server = NotificationServer(logging)
     port = args.port

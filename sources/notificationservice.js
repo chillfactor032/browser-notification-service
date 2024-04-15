@@ -22,10 +22,5 @@ socket.on('WELCOME', function(data) {
     socket.emit("REGISTER", {"code": code});
 });
 
-socket.on('DEBUG', function(data) {
-    console.log("DEBUG EVENT:")
-    console.log(data)
-});
-
 socket.on('error', console.error.bind(console));
 socket.on('message', console.log.bind(console));

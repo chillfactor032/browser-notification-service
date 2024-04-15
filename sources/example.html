@@ -2,9 +2,13 @@
 <html>
 <head>
     <script src="https://cdn.socket.io/4.7.5/socket.io.js"></script>
-    <script src="sources/notificationservice.js"></script>
+    <script src="notificationservice.js"></script>
 <script>
-
+//Register Callbacks for events you are intersted in
+socket.on('DEBUG', function(data) {
+    console.log("DEBUG EVENT:")
+    console.log(data)
+});
 </script>
 </head>
 <body>
