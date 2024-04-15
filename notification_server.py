@@ -210,8 +210,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     log_level = logging.getLevelName(args.loglevel)
+    log_file = None
+    
     if not args.logfile:
         log_file = os.path.join(SCRIPT_DIR, "noti_server.log")
+    else:
+        log_file = args.logfile
 
     #Setup Logging
     logging.basicConfig(
