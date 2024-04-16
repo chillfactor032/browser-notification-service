@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import argparse
+import ssl
 import socketio
 from aiohttp import web
 
@@ -155,12 +156,18 @@ class NotificationServer():
         """handles events"""
         self.log.debug(f"Event {event}: {data}")
 
-    def run_app(self, host="127.0.0.1", port=8080):
+    def run_app(self, host="127.0.0.1", port=8080, ssl_context=None):
         """Runs the web.Application"""
         self.log.info("=== Starting Notification Server ===")
         self.log.info(f"Host: [0:0:0:0] Port:[{port}]")
         self._loop = asyncio.new_event_loop()
-        web.run_app(self.app, loop=self._loop, host=host, port=port, handle_signals=True, shutdown_timeout=10)
+        web.run_app(self.app, 
+                    loop=self._loop, 
+                    host=host, 
+                    port=port, 
+                    ssl_context=ssl_context, 
+                    handle_signals=True, 
+                    shutdown_timeout=10)
     
     def stop(self):
         self.log.info("Stopping SocketIO Server")
@@ -219,6 +226,10 @@ if __name__ == '__main__':
     parser.add_argument("-f", 
         "--logfile", 
         help="Specify log file location. Production location should be <WEBROOT>/log/noti_server.log")
+    
+    parser.add_argument('--ssl',
+        action='store_true',
+        help="Enable SSL Context")
 
     args = parser.parse_args()
     log_level = logging.getLevelName(args.loglevel)
@@ -228,6 +239,8 @@ if __name__ == '__main__':
         log_file = os.path.join(SCRIPT_DIR, "noti_server.log")
     else:
         log_file = args.logfile
+
+    
 
     #Setup Logging
     logging.basicConfig(
@@ -242,4 +255,7 @@ if __name__ == '__main__':
     server = NotificationServer(logging)
     host = args.host
     port = args.port
-    server.run_app(host, port)
+    ssl_ctx = None
+    if args.ssl:
+        ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    server.run_app(host, port, ssl_context=ssl_ctx)
