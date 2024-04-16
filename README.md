@@ -68,3 +68,33 @@ Now you can forward any event to this page by making the API call:
 `http://mysite.com:8080/sources/alert.html?code=1234&event=EVENTNAME&foo=bar`
 
 Notice all query parameters are included in the event, including event name and code.
+
+## Running systemctl Service
+
+The Browser Notification Service can be run as a systemctl service. Create the file `/etc/systemd/system/notiservice.service'
+
+```ini
+[Unit]
+Description=Control browser-notification-service
+After=multi-user.target
+
+[Service]
+ExecStart=python3 <CLONE_DIR>/browser-notification-service/notification_server.py -H <HOST> -p <PORT> -f <LOGFILE_PATH>
+Type=simple
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Save this file. The service can now be stopped, started, and restarted as a systemctl service.
+
+```bash
+systemctl start notiservice.service
+systemctl stop notiservice.service
+systemctl restart notiservice.service
+```
+
+## Troubleshooting
+
+If changes are made to the service and the systemctl service won't start, try `sudo /bin/systemctl daemon-reload`
