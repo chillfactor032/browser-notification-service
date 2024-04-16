@@ -28,7 +28,8 @@ class NotificationServer():
             web.get("/favicon.ico", self.static_file),
             web.get("/example.html", self.static_file),
             web.get("/notify", self.notify),
-            web.get("/sources/{tail:.*}", self.static_file)
+            web.get("/sources/{tail:.*}", self.static_file),
+            web.get("/heartbeat", self.heartbeat)
         ]
         # event handler = ["event name", handler_function, Namespace=None]
         self.event_handlers = [
@@ -57,7 +58,14 @@ class NotificationServer():
         """Serve client.html for testing"""
         with open('example/client.html', "r", encoding="utf8") as f:
             return web.Response(text=f.read(), content_type='text/html')
-    
+        
+    async def heartbeat(self, request=web.Request): # pylint: disable=unused-argument
+        """Serve responds with OK if server is running"""
+        obj = {
+            "heartbeat": "OK"
+        }
+        return web.json_response(obj)
+
     async def static_file(self, request=web.Request):
         """Serve a static file from script root"""
         local_path = os.path.join(self.script_dir, request.rel_url.path[1:])
@@ -191,7 +199,7 @@ if __name__ == '__main__':
         description = 'Small WebSocket/App Server to facilitate websocket notifications',
         epilog = '')
 
-    parser.add_argument("-a", 
+    parser.add_argument("-H", 
         "--host", 
         default="127.0.0.1",
         help="Specify the listener host. Default is 127.0.0.1")
