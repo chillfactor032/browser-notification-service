@@ -95,6 +95,19 @@ systemctl stop notiservice.service
 systemctl restart notiservice.service
 ```
 
+## Enable SSL
+
+If SSL is required, create an ssl context json file that contains paths to the certificate and key files. These files construct a python ssl_context passed to aiohttp. The file format is as follows:
+
+```json
+{
+    "cert": "<path to cert>",
+    "key": "<path to cert key>"
+}
+```
+
+To use the SSL context, call the server script with the argument `--sslcontext <PATH TO SSL FILE>`.
+
 ## Troubleshooting
 
 If changes are made to the service and the systemctl service won't start, try `sudo /bin/systemctl daemon-reload`

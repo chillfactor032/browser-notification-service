@@ -227,9 +227,8 @@ if __name__ == '__main__':
         "--logfile", 
         help="Specify log file location. Production location should be <WEBROOT>/log/noti_server.log")
     
-    parser.add_argument('--ssl',
-        action='store_true',
-        help="Enable SSL Context")
+    parser.add_argument("--sslcontext", 
+        help="Path to an ssl context config json. See README for details.")
 
     args = parser.parse_args()
     log_level = logging.getLevelName(args.loglevel)
@@ -252,10 +251,31 @@ if __name__ == '__main__':
 
     logging.getLogger().addHandler(logging.StreamHandler())
 
+    ssl_file = None
+    ssl_context_json = None
+    if args.sslcontext is not None:
+        ssl_file = args.sslcontext
+        if os.path.isfile(ssl_file):
+            try:
+                with open(ssl_file) as f:
+                    ssl_context_json = json.load(f);
+            except Exception as e:
+                logging.error("Could not parse ssl file as json")
+                logging.error(str(e))
+                ssl_context_json = None
+            if "cert" not in ssl_context_json.keys() or "key" not in ssl_context_json.keys():
+                logging.error("ssl file is malformed. 'cert' and 'key' must be provided")
+                ssl_context_json = None
+        else:
+            logging.error("ssl file is specified but doesn't exist. Ignoring")
+            ssl_context_json = None
+            
     server = NotificationServer(logging)
     host = args.host
     port = args.port
     ssl_ctx = None
-    if args.ssl:
+    if ssl_context_json is not None:
         ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+        ssl_ctx.load_cert_chain(certfile=ssl_context_json["cert"], 
+            keyfile=ssl_context_json["key"])
     server.run_app(host, port, ssl_context=ssl_ctx)
