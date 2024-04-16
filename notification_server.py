@@ -21,7 +21,7 @@ class NotificationServer():
         self.log = logging
         self.script_dir = os.path.dirname(os.path.realpath(__file__)).replace("\\", "/")
         self.registered_codes = {}
-        self.sio = socketio.AsyncServer(logger=self.log, engineio_logger=self.log)
+        self.sio = socketio.AsyncServer(logger=self.log, engineio_logger=self.log, cors_allowed_origins='*')
         self.app = web.Application(logger=self.log)
         self.app.on_shutdown.append(self.on_shutdown)
         self.routes = [
