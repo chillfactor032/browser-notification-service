@@ -5,6 +5,7 @@
 
 import os
 import pathlib
+import socket
 import signal
 import asyncio
 import json
@@ -19,6 +20,8 @@ class NotificationServer():
 
     def __init__(self, logging):
         self.log = logging
+        self.ip = NotificationServer.get_own_ip()
+        self.log.info(f"Register Server Remote IP [{self.ip}]")
         self.script_dir = os.path.dirname(os.path.realpath(__file__)).replace("\\", "/")
         self.registered_codes = {}
         self.sio = socketio.AsyncServer(logger=self.log, engineio_logger=self.log, cors_allowed_origins='*')
@@ -30,13 +33,15 @@ class NotificationServer():
             web.get("/example.html", self.static_file),
             web.get("/notify", self.notify),
             web.get("/sources/{tail:.*}", self.static_file),
-            web.get("/heartbeat", self.heartbeat)
+            web.get("/heartbeat", self.heartbeat),
+            web.get("/clients", self.list_clients)
         ]
         # event handler = ["event name", handler_function, Namespace=None]
         self.event_handlers = [
             ["connect", self.connect, None],
             ["disconnect", self.disconnect, None],
             ["REGISTER", self.register, None],
+            ["LIST_CLIENTS", self.list_clients, None],
             ["*", self.event, None]
         ]
         # Register WebApp Routes
@@ -66,6 +71,10 @@ class NotificationServer():
             "heartbeat": "OK"
         }
         return web.json_response(obj)
+    
+    async def list_clients(self, request=web.Request): # pylint: disable=unused-argument
+        """Serve responds with OK if server is running"""
+        return web.json_response(self.registered_codes)
 
     async def static_file(self, request=web.Request):
         """Serve a static file from script root"""
@@ -87,26 +96,28 @@ class NotificationServer():
         raise web.HTTPNotFound()
     
     async def notify(self, request=web.Request):
-        """REST API Endpoint to send a message to a websocket client"""
+        """REST API Endpoint to broadcast a message to a websocket client"""
         code = request.query.get("code", None)
         event = request.query.get("event", None)
         if code is None or event is None:
             # Code or Msg cannot be
             raise web.HTTPBadRequest(text="400 Bad Request: code or msg is missing")
-        event = event.upper().replace(" ", "_")
-        found_sid = None
-        for sid, registered_code in self.registered_codes.items():
-            if registered_code == code:
-                found_sid = sid
-                break
+        #Gather data from the request and build the data obj for the message
         data = {}
         for k, v in request.query.items():
             data[k] = v
-        if found_sid:
-            await self.sio.emit(event, data, sid)
-            return web.Response(text="OK", content_type='text/html')
-        else:
-            raise web.HTTPNotFound(text="404: Provided code not found in list of clients")
+        event = event.upper().replace(" ", "_")
+        count = 0
+        for sid, registered_code in self.registered_codes.items():
+            if registered_code == code:
+                count+=1
+                await self.sio.emit(event, data, sid)
+        obj = {
+            "success": 1,
+            "count": count,
+            "msg": f"Broadcast event to {count} clients"
+        }
+        return web.json_response(obj)
 
     async def on_shutdown(self, app):
         """Handle shutdown signal for aiohttp.web.Application"""
@@ -127,7 +138,10 @@ class NotificationServer():
     async def connect(self, sid, environ, auth):
         """Connect Event Handler"""
         self.log.info(f"Connect Event: {sid}")
-        await self.sio.emit("WELCOME", {"message": "Please register your code"})
+        if environ["REMOTE_ADDR"] in ['127.0.0.1',self.ip]:
+            self.log.debug(f"Client [{sid}] is a local user and has elevated access")
+        self.log.debug(environ)
+        await self.sio.emit("WELCOME", {"message": "Please register your code"}, to=sid)
 
     async def disconnect(self, sid):
         """Disconnect Event Handler"""
@@ -197,6 +211,11 @@ class NotificationServer():
         elif ext == ".ico":
             content_type = "image/vnd.microsoft.icon"
         return content_type
+
+    @staticmethod
+    def get_own_ip():
+        hostname = socket.gethostname()
+        return socket.gethostbyname(hostname)
 
 if __name__ == '__main__':
     SCRIPT_DIR = os.path.dirname(__file__)
